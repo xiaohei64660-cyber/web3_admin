@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Web3 Admin Dashboard</title>
+  <!-- Firebase compat SDKs (v9 compat mode for HTML) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 20px; background: #f8fafc; margin: 0; }
+    .container { max-width: 600px; margin: 0 auto; background: white; padding: 24px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    h2 { margin-top: 0; color: #1e293b; }
+    input, textarea, button, select { width: 100%; padding: 12px; margin: 12px 0; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 16px; }
+    button { background: #3b82f6; color: white; border: none; cursor: pointer; font-weight: 600; }
+    button:hover { opacity: 0.95; }
+    button.secondary { background: #64748b; }
+    .login-form, .admin-form { display: none; }
+    label { display: flex; align-items: center; gap: 10px; margin: 12px 0; }
+    label input { width: auto; }
+    #chainSelect { height: 120px; }
+    #saveStatus { margin-top: 16px; font-weight: 600; }
+    .success { color: #10b981; }
+    .error { color: #ef4444; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="login-form" id="loginForm">
+      <h2>Admin Login</h2>
+      <input type="email" id="email" placeholder="Email" autocomplete="email">
+      <input type="password" id="password" placeholder="Password" autocomplete="current-password">
+      <button onclick="login()">Login</button>
+      <p id="loginError" class="error"></p>
+    </div>
+
+    <div class="admin-form" id="adminForm">
+      <h2>Platform Configuration</h2>
+      
+      <label>
+        <input type="checkbox" id="enabled"> Enable Platform
+      </label>
+      <label>
+        <input type="checkbox" id="maintenance"> Maintenance Mode
+      </label>
+      
+      <h3 style="margin: 24px 0 12px;">Supported Chains</h3>
+      <select id="chainSelect" multiple size="6">
+        <option value="1">Ethereum</option>
+        <option value="137">Polygon</option>
+        <option value="56">BNB Chain</option>
+        <option value="8453">Base</option>
+        <option value="42161">Arbitrum</option>
+        <option value="10">Optimism</option>
+        <option value="43114">Avalanche</option>
+        <option value="250">Fantom</option>
+      </select>
+
+      <h3 style="margin: 24px 0 12px;">Announcements</h3>
+      <textarea id="announcements" placeholder="One per line (e.g., New rewards live!)" rows="3"></textarea>
+
+      <h3 style="margin: 24px 0 12px;">Default Slippage (%)</h3>
+      <input type="number" id="slippage" step="0.1" min="0.1" max="10" value="0.5">
+
+      <button onclick="saveConfig()" style="margin-top: 20px;">Save Configuration</button>
+      <button class="secondary" onclick="logout()" style="margin-top: 12px;">Logout</button>
+      <p id="saveStatus"></p>
+    </div>
+  </div>
+
+  <script>
+    // Paste your Firebase config here (from Project settings > Your apps)
+    const firebaseConfig = {
+      apiKey: "AIzaSyBr-qshwzqUawIX4IYLOBnr4nBGKYLEvkE",
+      authDomain: "admin-panel-76ec1.firebaseapp.com",
+      projectId: "admin-panel-76ec1",
+      storageBucket: "admin-panel-76ec1.firebasestorage.app",
+      messagingSenderId: "577883246842",
+      appId: "1:577883246842:web:4f4f71faf83c0ea5bfb943",
+      measurementId: "G-HDN6SSW7BE"
+    };
+
+    // Initialize Firebase in compat mode
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    // Handle auth state
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        document.getElementById('loginForm').style.display = 'none';
+        document.getElementById('adminForm').style.display = 'block';
+        loadConfig();
+      } else {
+        document.getElementById('loginForm').style.display = 'block';
+        document.getElementById('adminForm').style.display = 'none';
+      }
+    });
+
+    function login() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const errorEl = document.getElementById('loginError');
+      errorEl.textContent = '';
+
+      auth.signInWithEmailAndPassword(email, password)
+        .catch(err => {
+          errorEl.textContent = err.message;
+        });
+    }
+
+    function logout() {
+      auth.signOut();
+    }
+
+    async function loadConfig() {
+      try {
+        const doc = await db.collection('config').doc('platform').get();
+        if (doc.exists) {
+          const data = doc.data();
+          document.getElementById('enabled').checked = data.enabled ?? true;
+          document.getElementById('maintenance').checked = data.maintenance ?? false;
+          
+          const chains = data.supportedChains || [];
+          const select = document.getElementById('chainSelect');
+          for (let option of select.options) {
+            option.selected = chains.includes(Number(option.value));
+          }
+          
+          document.getElementById('announcements').value = (data.announcements || []).join('\n');
+          document.getElementById('slippage').value = data.defaultSlippage || 0.5;
+        }
+      } catch (err) {
+        console.error("Load config error:", err);
+      }
+    }
+
+    async function saveConfig() {
+      const statusEl = document.getElementById('saveStatus');
+      try {
+        const select = document.getElementById('chainSelect');
+        const selectedChains = Array.from(select.selectedOptions).map(opt => Number(opt.value));
+        
+        const config = {
+          enabled: document.getElementById('enabled').checked,
+          maintenance: document.getElementById('maintenance').checked,
+          supportedChains: selectedChains,
+          announcements: document.getElementById('announcements').value.split('\n').filter(x => x.trim()),
+          defaultSlippage: parseFloat(document.getElementById('slippage').value) || 0.5
+        };
+
+        await db.collection('config').doc('platform').set(config);
+        statusEl.textContent = '✅ Configuration saved successfully!';
+        statusEl.className = 'success';
+        setTimeout(() => statusEl.textContent = '', 3000);
+      } catch (err) {
+        statusEl.textContent = '❌ Save failed: ' + err.message;
+        statusEl.className = 'error';
+      }
+    }
+  </script>
+</body>
+</html>
