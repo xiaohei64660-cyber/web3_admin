@@ -1,32 +1,111 @@
+
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Web3 Admin Dashboard</title>
-  <!-- Firebase compat SDKs (v9 compat mode for HTML) -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 20px; background: #f8fafc; margin: 0; }
-    .container { max-width: 600px; margin: 0 auto; background: white; padding: 24px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
-    h2 { margin-top: 0; color: #1e293b; }
-    input, textarea, button, select { width: 100%; padding: 12px; margin: 12px 0; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 16px; }
-    button { background: #3b82f6; color: white; border: none; cursor: pointer; font-weight: 600; }
-    button:hover { opacity: 0.95; }
-    button.secondary { background: #64748b; }
-    .login-form, .admin-form { display: none; }
-    label { display: flex; align-items: center; gap: 10px; margin: 12px 0; }
-    label input { width: auto; }
-    #chainSelect { height: 120px; }
-    #saveStatus { margin-top: 16px; font-weight: 600; }
-    .success { color: #10b981; }
-    .error { color: #ef4444; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      padding: 20px;
+      background: #f8fafc;
+      margin: 0;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background: white;
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+    h2 {
+      margin-top: 0;
+      color: #1e293b;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 10px;
+    }
+    input, textarea, button, select {
+      width: 100%;
+      padding: 12px;
+      margin: 12px 0;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+    button {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button:hover {
+      opacity: 0.95;
+    }
+    button.secondary {
+      background: #64748b;
+    }
+    button.small {
+      width: auto;
+      padding: 8px 16px;
+      font-size: 14px;
+      margin: 0 0 0 10px;
+    }
+    .login-form, .admin-form {
+      display: none;
+    }
+    label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 12px 0;
+    }
+    label input[type="checkbox"] {
+      width: auto;
+    }
+    #chainSelect {
+      height: 120px;
+    }
+    #saveStatus, #userStatus {
+      margin-top: 16px;
+      font-weight: 600;
+    }
+    .success {
+      color: #10b981;
+    }
+    .error {
+      color: #ef4444;
+    }
+    #userPanel {
+      display: none;
+      margin-top: 20px;
+      padding: 16px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      background: #f1f5f9;
+    }
+    .assets-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 10px 0;
+    }
+    .asset-item {
+      background: white;
+      padding: 8px;
+      border-radius: 6px;
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
   <div class="container">
+    <!-- Login Form -->
     <div class="login-form" id="loginForm">
       <h2>Admin Login</h2>
       <input type="email" id="email" placeholder="Email" autocomplete="email">
@@ -35,6 +114,7 @@
       <p id="loginError" class="error"></p>
     </div>
 
+    <!-- Admin Form -->
     <div class="admin-form" id="adminForm">
       <h2>Platform Configuration</h2>
       
@@ -45,7 +125,7 @@
         <input type="checkbox" id="maintenance"> Maintenance Mode
       </label>
       
-      <h3 style="margin: 24px 0 12px;">Supported Chains</h3>
+      <h3>Supported Chains</h3>
       <select id="chainSelect" multiple size="6">
         <option value="1">Ethereum</option>
         <option value="137">Polygon</option>
@@ -57,20 +137,55 @@
         <option value="250">Fantom</option>
       </select>
 
-      <h3 style="margin: 24px 0 12px;">Announcements</h3>
+      <h3>Announcements</h3>
       <textarea id="announcements" placeholder="One per line (e.g., New rewards live!)" rows="3"></textarea>
 
-      <h3 style="margin: 24px 0 12px;">Default Slippage (%)</h3>
+      <h3>Default Slippage (%)</h3>
       <input type="number" id="slippage" step="0.1" min="0.1" max="10" value="0.5">
 
-      <button onclick="saveConfig()" style="margin-top: 20px;">Save Configuration</button>
-      <button class="secondary" onclick="logout()" style="margin-top: 12px;">Logout</button>
+      <button onclick="saveConfig()" style="margin-top: 20px;">Save Platform Config</button>
       <p id="saveStatus"></p>
+
+      <!-- User Management -->
+      <h2 style="margin-top: 32px;">User Management</h2>
+      <input type="text" id="userWallet" placeholder="Enter user wallet address (0x...)">
+      <button onclick="loadUser()">Load User</button>
+
+      <div id="userPanel">
+        <h3>User: <span id="userAddressDisplay"></span></h3>
+        
+        <h4>Assets</h4>
+        <div id="assetsList" class="assets-grid"></div>
+        
+        <h4>Credit Points</h4>
+        <div style="display:flex; gap:10px; margin:10px 0;">
+          <input type="number" id="creditPoints" placeholder="Credit Points" style="width:200px;">
+          <button class="small" onclick="updateCreditPoints()">Update</button>
+        </div>
+        
+        <h4>Withdraw Permission</h4>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <label>
+            <input type="checkbox" id="userWithdraw"> Allow this user to withdraw
+          </label>
+          <button class="small" onclick="updateWithdrawPermission()">Save</button>
+        </div>
+      </div>
+
+      <!-- Global Controls -->
+      <h2 style="margin-top: 32px;">Global Controls</h2>
+      <label>
+        <input type="checkbox" id="allowWithdrawGlobally"> Allow Withdrawals Globally
+      </label>
+      <button onclick="saveGlobalControls()" style="margin-top: 12px;">Save Global Settings</button>
+      <p id="globalStatus"></p>
+
+      <button class="secondary" onclick="logout()" style="margin-top: 24px;">Logout</button>
     </div>
   </div>
 
   <script>
-    // Paste your Firebase config here (from Project settings > Your apps)
+    // Firebase config (replace with your own if needed)
     const firebaseConfig = {
       apiKey: "AIzaSyBr-qshwzqUawIX4IYLOBnr4nBGKYLEvkE",
       authDomain: "admin-panel-76ec1.firebaseapp.com",
@@ -81,23 +196,25 @@
       measurementId: "G-HDN6SSW7BE"
     };
 
-    // Initialize Firebase in compat mode
+    // Initialize Firebase
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.firestore();
 
-    // Handle auth state
+    // Auth state listener
     auth.onAuthStateChanged(user => {
       if (user) {
         document.getElementById('loginForm').style.display = 'none';
         document.getElementById('adminForm').style.display = 'block';
         loadConfig();
+        loadGlobalControls();
       } else {
         document.getElementById('loginForm').style.display = 'block';
         document.getElementById('adminForm').style.display = 'none';
       }
     });
 
+    // Login function
     function login() {
       const email = document.getElementById('email').value;
       const password = document.getElementById('password').value;
@@ -110,10 +227,12 @@
         });
     }
 
+    // Logout function
     function logout() {
       auth.signOut();
     }
 
+    // Load platform config
     async function loadConfig() {
       try {
         const doc = await db.collection('config').doc('platform').get();
@@ -136,6 +255,7 @@
       }
     }
 
+    // Save platform config
     async function saveConfig() {
       const statusEl = document.getElementById('saveStatus');
       try {
@@ -151,7 +271,120 @@
         };
 
         await db.collection('config').doc('platform').set(config);
-        statusEl.textContent = '✅ Configuration saved successfully!';
+        statusEl.textContent = '✅ Platform config saved!';
+        statusEl.className = 'success';
+        setTimeout(() => statusEl.textContent = '', 3000);
+      } catch (err) {
+        statusEl.textContent = '❌ Save failed: ' + err.message;
+        statusEl.className = 'error';
+      }
+    }
+
+    // Load user data
+    async function loadUser() {
+      const wallet = document.getElementById('userWallet').value.trim();
+      if (!wallet) return alert('Please enter a wallet address');
+      if (!wallet.startsWith('0x') || wallet.length !== 42) {
+        return alert('Invalid wallet address format');
+      }
+
+      try {
+        const userDoc = await db.collection('users').doc(wallet).get();
+        const userPanel = document.getElementById('userPanel');
+        if (!userDoc.exists) {
+          userPanel.style.display = 'block';
+          document.getElementById('userAddressDisplay').textContent = wallet;
+          document.getElementById('assetsList').innerHTML = '<div>No assets recorded yet</div>';
+          document.getElementById('creditPoints').value = 0;
+          document.getElementById('userWithdraw').checked = true;
+          return;
+        }
+        
+        const userData = userDoc.data();
+        document.getElementById('userAddressDisplay').textContent = wallet;
+        document.getElementById('userWallet').value = wallet;
+        
+        // Display assets
+        let assetsHtml = '';
+        const assets = userData.assets || {};
+        if (Object.keys(assets).length === 0) {
+          assetsHtml = '<div>No assets recorded</div>';
+        } else {
+          for (const [token, amount] of Object.entries(assets)) {
+            assetsHtml += `<div class="asset-item"><strong>${token.toUpperCase()}:</strong> ${parseFloat(amount).toFixed(4)}</div>`;
+          }
+        }
+        document.getElementById('assetsList').innerHTML = assetsHtml;
+        
+        // Set credit points
+        document.getElementById('creditPoints').value = userData.creditPoints || 0;
+        
+        // Set withdraw permission
+        document.getElementById('userWithdraw').checked = userData.allowWithdraw !== false;
+        
+        userPanel.style.display = 'block';
+      } catch (err) {
+        alert('Error loading user: ' + err.message);
+      }
+    }
+
+    // Update credit points
+    async function updateCreditPoints() {
+      const wallet = document.getElementById('userWallet').value.trim();
+      const points = parseFloat(document.getElementById('creditPoints').value) || 0;
+      
+      try {
+        await db.collection('users').doc(wallet).set({
+          walletAddress: wallet,
+          creditPoints: points,
+          lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+        alert('✅ Credit points updated!');
+      } catch (err) {
+        alert('❌ Error: ' + err.message);
+      }
+    }
+
+    // Update withdraw permission
+    async function updateWithdrawPermission() {
+      const wallet = document.getElementById('userWallet').value.trim();
+      const allow = document.getElementById('userWithdraw').checked;
+      
+      try {
+        await db.collection('users').doc(wallet).set({
+          walletAddress: wallet,
+          allowWithdraw: allow,
+          lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+        alert('✅ Withdraw permission updated!');
+      } catch (err) {
+        alert('❌ Error: ' + err.message);
+      }
+    }
+
+    // Load global controls
+    async function loadGlobalControls() {
+      try {
+        const doc = await db.collection('config').doc('platform').get();
+        if (doc.exists) {
+          const data = doc.data();
+          document.getElementById('allowWithdrawGlobally').checked = data.allowWithdrawGlobally !== false;
+        }
+      } catch (err) {
+        console.error("Load global controls error:", err);
+      }
+    }
+
+    // Save global controls
+    async function saveGlobalControls() {
+      const statusEl = document.getElementById('globalStatus');
+      const allowWithdraw = document.getElementById('allowWithdrawGlobally').checked;
+      
+      try {
+        await db.collection('config').doc('platform').set({
+          allowWithdrawGlobally: allowWithdraw
+        }, { merge: true });
+        statusEl.textContent = '✅ Global settings saved!';
         statusEl.className = 'success';
         setTimeout(() => statusEl.textContent = '', 3000);
       } catch (err) {
